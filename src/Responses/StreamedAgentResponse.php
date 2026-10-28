@@ -53,5 +53,8 @@ class StreamedAgentResponse extends AgentResponse
         $this->withSteps(
             $events->whereInstanceOf([StreamEnd::class, ToolApprovalRequest::class])->last()?->steps ?? new Collection
         );
+
+        // The streamed meta is built before any step runs, so it takes the container from the final step...
+        $this->meta->container = $this->steps->last()?->meta->container;
     }
 }

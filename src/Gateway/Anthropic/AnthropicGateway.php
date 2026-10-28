@@ -51,7 +51,7 @@ class AnthropicGateway implements Gateway, StepTextGateway
         ?int $timeout,
         StepContext $stepContext,
     ): StepResponse {
-        $body = $this->buildTextRequestBody(
+        $body = $this->withContainer($this->buildTextRequestBody(
             $provider,
             $model,
             $instructions,
@@ -59,7 +59,7 @@ class AnthropicGateway implements Gateway, StepTextGateway
             $tools,
             $schema,
             $options,
-        );
+        ), $stepContext);
 
         $response = $this->withErrorHandling(
             $provider->name(),
@@ -88,7 +88,7 @@ class AnthropicGateway implements Gateway, StepTextGateway
         ?int $timeout,
         StepContext $stepContext,
     ): Generator {
-        $body = $this->buildTextRequestBody(
+        $body = $this->withContainer($this->buildTextRequestBody(
             $provider,
             $model,
             $instructions,
@@ -96,7 +96,7 @@ class AnthropicGateway implements Gateway, StepTextGateway
             $tools,
             $schema,
             $options,
-        );
+        ), $stepContext);
 
         $body['stream'] = true;
 

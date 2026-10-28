@@ -673,6 +673,28 @@ test('it does not execute streamed tool calls on the final step', function (): v
         ->and(collect($events)->whereInstanceOf(StreamEnd::class))->toHaveCount(1);
 });
 
+test('it hands every later step the latest container a step reported', function (): void {
+    $gateway = new TextGenerationLoopFakeGateway([
+        new StepResponse('', [], FinishReason::Continue, new TextUsage, new Meta('fake', 'model', container: 'container-1')),
+        new StepResponse('', [], FinishReason::Continue, new TextUsage, new Meta('fake', 'model')),
+        new StepResponse('Done', [], FinishReason::Stop, new TextUsage, new Meta('fake', 'model', container: 'container-1')),
+    ]);
+
+    (new TextGenerationLoop($gateway))->generate(
+        textGenerationLoopProvider(),
+        'model',
+        null,
+        [],
+        [],
+        null,
+        new TextGenerationOptions(maxSteps: 5),
+        null,
+    );
+
+    expect(array_map(fn (StepContext $context): ?string => $context->container, $gateway->contexts))
+        ->toBe([null, 'container-1', 'container-1']);
+});
+
 test('it clamps non-positive maxSteps to at least one turn', function (int $maxSteps): void {
     $gateway = new TextGenerationLoopFakeGateway([
         new StepResponse(

@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use Laravel\Ai\Attributes\CacheInstructions;
 use Laravel\Ai\Attributes\CacheToolDefinitions;
 use Laravel\Ai\Gateway\Anthropic\AnthropicSchemaSanitizer;
+use Laravel\Ai\Gateway\StepContext;
 use Laravel\Ai\Gateway\TextGenerationOptions;
 use Laravel\Ai\ObjectSchema;
 use Laravel\Ai\Providers\Provider;
@@ -77,6 +78,18 @@ trait BuildsTextRequests
         }
 
         return $this->applyPromptCacheBreakpoints(array_merge($body, $providerOptions), $options);
+    }
+
+    /**
+     * Keep the run in the code execution container an earlier step reported, unless the caller chose one.
+     */
+    protected function withContainer(array $body, StepContext $stepContext): array
+    {
+        if ($stepContext->container !== null && ! array_key_exists('container', $body)) {
+            $body['container'] = $stepContext->container;
+        }
+
+        return $body;
     }
 
     /**

@@ -525,7 +525,7 @@ class TextGenerationLoop
     }
 
     /**
-     * A continuation replays only unchanged history, model and instructions.
+     * A continuation replays only unchanged history, model and instructions, while a container outlives either.
      *
      * @param  Message[]  $history
      */
@@ -537,6 +537,7 @@ class TextGenerationLoop
             stepNumber: $step->number,
             isFinalStep: $step->isFinalStep,
             continuationToken: $unchanged ? $continuationToken : null,
+            container: (new Collection($step->steps))->reverse()->first(fn (Step $completed): bool => $completed->meta->container !== null)?->meta->container,
         );
     }
 

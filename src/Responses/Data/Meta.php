@@ -13,11 +13,13 @@ class Meta implements Arrayable, JsonSerializable
 
     /**
      * @param  Collection<int, Citation>|null  $citations
+     * @param  string|null  $container  The provider's code execution container, when one was used.
      */
     public function __construct(
         public ?string $provider = null,
         public ?string $model = null,
         ?Collection $citations = null,
+        public ?string $container = null,
     ) {
         $this->citations = $citations ?? new Collection;
     }
@@ -33,6 +35,7 @@ class Meta implements Arrayable, JsonSerializable
             'citations' => $this->citations
                 ? $this->citations->all()
                 : [],
+            ...($this->container !== null ? ['container' => $this->container] : []),
         ];
     }
 

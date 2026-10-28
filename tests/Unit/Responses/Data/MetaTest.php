@@ -40,3 +40,8 @@ test('meta json serialize returns to array', function (): void {
     expect($json['provider'])->toBe('anthropic')
         ->and($json['model'])->toBe('claude-3-opus');
 });
+
+test('meta to array includes the container only when one was used', function (): void {
+    expect((new Meta('anthropic', 'claude-sonnet-4-6'))->toArray())->not->toHaveKey('container')
+        ->and((new Meta('anthropic', 'claude-sonnet-4-6', container: 'container_1'))->toArray()['container'])->toBe('container_1');
+});
