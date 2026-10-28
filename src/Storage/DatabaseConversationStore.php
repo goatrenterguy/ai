@@ -13,6 +13,7 @@ use InvalidArgumentException;
 use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\ConversationStore;
+use Laravel\Ai\Contracts\DetectsDuplicateMessages;
 use Laravel\Ai\Contracts\PaginatesConversations;
 use Laravel\Ai\Contracts\ResolvesPendingApprovals;
 use Laravel\Ai\Contracts\VerifiesConversationOwnership;
@@ -32,7 +33,7 @@ use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
 use Throwable;
 
-class DatabaseConversationStore implements ConversationStore, PaginatesConversations, ResolvesPendingApprovals, VerifiesConversationOwnership
+class DatabaseConversationStore implements ConversationStore, DetectsDuplicateMessages, PaginatesConversations, ResolvesPendingApprovals, VerifiesConversationOwnership
 {
     /**
      * Create a new conversation store instance.
@@ -97,7 +98,7 @@ class DatabaseConversationStore implements ConversationStore, PaginatesConversat
      */
     public function storeUserMessage(string $conversationId, ?string $participantType, string|int|null $participantId, string $agent, UserMessage $message): string
     {
-        $messageId = (string) Str::uuid7();
+        $messageId = $this->userMessageIdFor($conversationId, $message);
 
         $now = now();
 
@@ -115,6 +116,51 @@ class DatabaseConversationStore implements ConversationStore, PaginatesConversat
         $this->touchConversation($conversationId, $now);
 
         return $messageId;
+    }
+
+    /**
+     * Determine whether the given conversation already stored a message under the given ID.
+     */
+    public function hasMessage(string $conversationId, string $messageId): bool
+    {
+        return $this->table($this->messagesTable())
+            ->where('conversation_id', $conversationId)
+            ->where('id', $messageId)
+            ->exists();
+    }
+
+    /**
+     * Get the ID a user message is stored under, keeping the caller's ID only when it is free and sorts in place.
+     */
+    protected function userMessageIdFor(string $conversationId, UserMessage $message): string
+    {
+        $generated = (string) Str::uuid7();
+
+        $id = $message->id;
+
+        if ($id === null || ! Str::isUuid($id) || $id !== strtolower($id) || ! $this->predatesNow($id)) {
+            return $generated;
+        }
+
+        // History is read in ID order, so an ID older than the conversation's newest row would land the message in the past...
+        $newest = $this->table($this->messagesTable())
+            ->where('conversation_id', $conversationId)
+            ->orderByDesc('id')
+            ->value('id');
+
+        if ($newest !== null && strcmp($id, $newest) <= 0) {
+            return $generated;
+        }
+
+        return $this->table($this->messagesTable())->where('id', $id)->exists() ? $generated : $id;
+    }
+
+    /**
+     * Determine whether the given UUID's leading millisecond timestamp is older than the current millisecond, so every ID generated after it sorts later.
+     */
+    protected function predatesNow(string $id): bool
+    {
+        return strcmp(substr(str_replace('-', '', $id), 0, 12), sprintf('%012x', (int) now()->getPreciseTimestamp(3))) < 0;
     }
 
     /**

@@ -7,8 +7,10 @@ use Illuminate\Support\Str;
 use Laravel\Ai\Concerns\RemembersConversations as RemembersConversationsTrait;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\ConversationStore;
+use Laravel\Ai\Contracts\DetectsDuplicateMessages;
 use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Contracts\RemembersConversations;
+use Laravel\Ai\Exceptions\MessageAlreadyStoredException;
 use Laravel\Ai\Messages\UserMessage;
 use Laravel\Ai\Models\Conversation;
 use Laravel\Ai\Prompts\AgentPrompt;
@@ -42,6 +44,8 @@ class RememberConversation
     {
         /** @var Agent&RemembersConversations $agent */
         $agent = $prompt->agent;
+
+        $this->ensureMessageIsNew($agent, $prompt);
 
         $pendingConversationId = $agent->currentConversation() === null
             ? (string) Str::uuid7()
@@ -167,8 +171,31 @@ class RememberConversation
             $participantType,
             $participantId,
             $agent::class,
-            new UserMessage($prompt->prompt, $prompt->attachments),
+            new UserMessage($prompt->prompt, $prompt->attachments, $prompt->messageId),
         );
+    }
+
+    /**
+     * Refuse to run a prompt whose user message the conversation already stored, so a resent message is not answered twice.
+     *
+     * @param  Agent&RemembersConversations  $agent
+     *
+     * @throws MessageAlreadyStoredException
+     */
+    protected function ensureMessageIsNew(Agent $agent, AgentPrompt $prompt): void
+    {
+        $conversationId = $agent->currentConversation();
+
+        if ($prompt->messageId === null
+            || $conversationId === null
+            || $prompt->hasApprovalDecisions()
+            || ! $this->store instanceof DetectsDuplicateMessages) {
+            return;
+        }
+
+        if ($this->store->hasMessage($conversationId, $prompt->messageId)) {
+            throw MessageAlreadyStoredException::for($conversationId, $prompt->messageId);
+        }
     }
 
     /**

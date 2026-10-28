@@ -42,6 +42,11 @@ class AgentPrompt extends Prompt
 
     public readonly ?string $parentToolInvocationId;
 
+    /**
+     * The ID the caller would like the prompt's user message stored under.
+     */
+    public readonly ?string $messageId;
+
     protected readonly bool $isFinalAttempt;
 
     protected ?RunContext $runContext = null;
@@ -63,6 +68,7 @@ class AgentPrompt extends Prompt
         bool $isFinalAttempt = true,
         ?array $messages = null,
         ?array $tools = null,
+        ?string $messageId = null,
     ) {
         parent::__construct($prompt, $provider, $model, $approvalDecisions);
 
@@ -75,6 +81,7 @@ class AgentPrompt extends Prompt
         $this->parentInvocationId = $parentInvocationId;
         $this->parentToolInvocationId = $parentToolInvocationId;
         $this->isFinalAttempt = $isFinalAttempt;
+        $this->messageId = $messageId;
     }
 
     /**
@@ -128,6 +135,7 @@ class AgentPrompt extends Prompt
             $this->isFinalAttempt,
             $this->messages,
             $this->tools,
+            $this->messageId,
         );
     }
 
@@ -156,6 +164,7 @@ class AgentPrompt extends Prompt
             $this->isFinalAttempt,
             $this->messages,
             [...$tools],
+            $this->messageId,
         );
     }
 

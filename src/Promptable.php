@@ -91,7 +91,7 @@ trait Promptable
         ?string $model = null,
         ?int $timeout = null): AgentResponse
     {
-        [$text, $approvalDecisions, $attachments] = $this->extractPromptInput($prompt, $attachments);
+        [$text, $approvalDecisions, $attachments, $messageId] = $this->extractPromptInput($prompt, $attachments);
 
         $messages = $this->flushAdHocMessages();
 
@@ -107,7 +107,7 @@ trait Promptable
 
         $run = function (TextProvider $provider, string $model, bool $isFinalAttempt = true) use (
             $text, $attachments, $timeout, $invocationId, $approvalDecisions,
-            $parentInvocationId, $parentToolInvocationId, $messages, $tools
+            $parentInvocationId, $parentToolInvocationId, $messages, $tools, $messageId
         ): AgentResponse {
             return $provider->prompt(
                 new AgentPrompt(
@@ -119,6 +119,7 @@ trait Promptable
                     isFinalAttempt: $isFinalAttempt,
                     messages: $messages,
                     tools: $tools,
+                    messageId: $messageId,
                 )
             );
         };
@@ -142,9 +143,9 @@ trait Promptable
         ?string $model = null,
         ?int $timeout = null): StreamableAgentResponse
     {
-        [$text, $approvalDecisions, $attachments] = $this->extractPromptInput($prompt, $attachments);
+        [$text, $approvalDecisions, $attachments, $messageId] = $this->extractPromptInput($prompt, $attachments);
 
-        return $this->streamPrompt($text, $approvalDecisions, $attachments, $provider, $model, $timeout);
+        return $this->streamPrompt($text, $approvalDecisions, $attachments, $provider, $model, $timeout, $messageId);
     }
 
     /**
@@ -156,7 +157,8 @@ trait Promptable
         array $attachments,
         Lab|array|string|null $provider,
         ?string $model,
-        ?int $timeout): StreamableAgentResponse
+        ?int $timeout,
+        ?string $messageId = null): StreamableAgentResponse
     {
         $providers = $approvalDecisions !== null
             ? $this->providersForApprovalContinuation($provider, $model)
@@ -183,6 +185,7 @@ trait Promptable
                     parentToolInvocationId: $parentToolInvocationId,
                     messages: $messages,
                     tools: $tools,
+                    messageId: $messageId,
                 )
             );
         }
@@ -192,7 +195,7 @@ trait Promptable
 
         $outer = new StreamableAgentResponse(
             $invocationId,
-            function () use ($providers, $prompt, $approvalDecisions, $attachments, $resolvedTimeout, $invocationId, $parentInvocationId, $parentToolInvocationId, $messages, $tools, &$outer) {
+            function () use ($providers, $prompt, $approvalDecisions, $attachments, $resolvedTimeout, $invocationId, $parentInvocationId, $parentToolInvocationId, $messages, $tools, $messageId, &$outer) {
                 $lastException = null;
 
                 foreach ($this->iterateProvidersWithFailover($providers) as [$provider, $model, $isFinalAttempt]) {
@@ -209,6 +212,7 @@ trait Promptable
                                 isFinalAttempt: $isFinalAttempt,
                                 messages: $messages,
                                 tools: $tools,
+                                messageId: $messageId,
                             )
                         );
 
@@ -273,9 +277,9 @@ trait Promptable
     }
 
     /**
-     * Split a prompt input into its text, tool approval decisions, and attachments.
+     * Split a prompt input into its text, tool approval decisions, attachments, and the ID its user message should be stored under.
      *
-     * @return array{string, ?Decisions, list<mixed>}
+     * @return array{string, ?Decisions, list<mixed>, ?string}
      */
     private function extractPromptInput(AgentInput|UserMessage|Decisions|string $prompt, array $attachments = []): array
     {
@@ -286,9 +290,9 @@ trait Promptable
         }
 
         return match (true) {
-            $prompt instanceof UserMessage => [$prompt->content ?? '', null, [...$prompt->attachments->all(), ...$attachments]],
-            $prompt instanceof Decisions => ['', $prompt, $attachments],
-            default => [$prompt, null, $attachments],
+            $prompt instanceof UserMessage => [$prompt->content ?? '', null, [...$prompt->attachments->all(), ...$attachments], $prompt->id],
+            $prompt instanceof Decisions => ['', $prompt, $attachments, null],
+            default => [$prompt, null, $attachments, null],
         };
     }
 
