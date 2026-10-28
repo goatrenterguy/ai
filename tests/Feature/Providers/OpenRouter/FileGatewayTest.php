@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Files;
@@ -86,3 +87,27 @@ test('delete file sends correct request', function (): void {
         && $request->url() === 'https://openrouter.ai/api/v1/files/or_file_abc123'
         && $request->hasHeader('Authorization', 'Bearer test-key'));
 });
+
+test('download file returns the content of a server-side file', function (): void {
+    Http::fake([
+        'openrouter.ai/*' => Http::response('%PDF-1.7', 200, ['Content-Type' => 'application/pdf']),
+    ]);
+
+    $response = Files::download('or_file_abc123', provider: 'openrouter');
+
+    expect($response->id)->toBe('or_file_abc123')
+        ->and($response->content())->toBe('%PDF-1.7')
+        ->and($response->mimeType())->toBe('application/pdf');
+
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
+        && $request->url() === 'https://openrouter.ai/api/v1/files/or_file_abc123/content'
+        && $request->hasHeader('Authorization', 'Bearer test-key'));
+});
+
+test('download file throws when the file was uploaded rather than created server-side', function (): void {
+    Http::fake([
+        'openrouter.ai/*' => Http::response(['error' => ['code' => 400, 'message' => 'File is not downloadable.']], 400),
+    ]);
+
+    Files::download('or_file_abc123', provider: 'openrouter');
+})->throws(RequestException::class);

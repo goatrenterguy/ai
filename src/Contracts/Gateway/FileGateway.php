@@ -18,6 +18,14 @@ interface FileGateway
     ): FileResponse;
 
     /**
+     * Download the content of a file by its ID.
+     */
+    public function downloadFile(
+        FileProvider $provider,
+        string $fileId,
+    ): FileResponse;
+
+    /**
      * Store the given file.
      */
     public function putFile(

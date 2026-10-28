@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Files;
@@ -145,3 +146,30 @@ test('raw response is excluded when serialized', function (): void {
     expect($unserialized->id)->toBe('file-abc123')
         ->and($unserialized->raw)->toBeNull();
 });
+
+test('download file returns the file content', function (): void {
+    Http::fake([
+        'api.openai.com/*' => Http::response('{"batch":1}', 200, ['Content-Type' => 'application/octet-stream']),
+    ]);
+
+    $response = Files::download('file-abc123', provider: 'openai');
+
+    expect($response->id)->toBe('file-abc123')
+        ->and($response->content())->toBe('{"batch":1}')
+        ->and($response->mimeType())->toBe('application/octet-stream')
+        ->and($response->raw)->not->toBeNull();
+
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
+        && $request->url() === 'https://api.openai.com/v1/files/file-abc123/content'
+        && $request->hasHeader('Authorization', 'Bearer test-key'));
+});
+
+test('download file throws when the provider refuses to serve the file', function (): void {
+    Http::fake([
+        'api.openai.com/*' => Http::response([
+            'error' => ['type' => 'invalid_request_error', 'message' => 'Not allowed to download files of purpose: user_data'],
+        ], 400),
+    ]);
+
+    Files::download('file-abc123', provider: 'openai');
+})->throws(RequestException::class);

@@ -6,6 +6,7 @@ use Laravel\Ai\Contracts\Files\StorableFile;
 use Laravel\Ai\Contracts\Gateway\FileGateway;
 use Laravel\Ai\Contracts\Providers\FileProvider;
 use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Gateway\Concerns\CreatesDownloadedFileResponses;
 use Laravel\Ai\Gateway\Concerns\EncodesResourceIds;
 use Laravel\Ai\Gateway\Concerns\HandlesFailoverErrors;
 use Laravel\Ai\Gateway\Concerns\PreparesStorableFiles;
@@ -15,6 +16,7 @@ use Laravel\Ai\Responses\StoredFileResponse;
 class OpenAiFileGateway implements FileGateway
 {
     use Concerns\CreatesOpenAiClient;
+    use CreatesDownloadedFileResponses;
     use EncodesResourceIds;
     use HandlesFailoverErrors;
     use PreparesStorableFiles;
@@ -33,6 +35,20 @@ class OpenAiFileGateway implements FileGateway
         return (new FileResponse(
             id: $response->json('id'),
         ))->withRawResponse($response);
+    }
+
+    /**
+     * Download the content of a file by its ID.
+     */
+    public function downloadFile(FileProvider $provider, string $fileId): FileResponse
+    {
+        $response = $this->withErrorHandling(
+            $provider->name(),
+            fn () => $this->client($provider)
+                ->get("files/{$this->resourceId($fileId)}/content")
+        );
+
+        return $this->downloadedFileResponse($fileId, $response);
     }
 
     /**

@@ -6,6 +6,7 @@ use Laravel\Ai\Contracts\Files\StorableFile;
 use Laravel\Ai\Files;
 use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\LocalDocument;
+use Laravel\Ai\Files\ProviderDocument;
 use Laravel\Ai\Responses\FileResponse;
 
 test('files can be faked', function (): void {
@@ -51,6 +52,29 @@ test('files can be faked with a closure', function (): void {
     expect($response->id)->toEqual('file_2')
         ->and($response->content)->toEqual('content-for-file_2');
 });
+
+test('faked file downloads return the faked content', function (): void {
+    Files::fake([
+        'first-content',
+        new FileResponse('id', mimeType: 'application/json', content: 'second-content'),
+    ]);
+
+    $response = Files::download('file_1');
+    expect($response->id)->toEqual('file_1')
+        ->and($response->content())->toEqual('first-content');
+
+    $response = (new ProviderDocument('file_2'))->download();
+    expect($response->id)->toEqual('id')
+        ->and($response->content())->toEqual('second-content');
+
+    expect(Files::download('file_3')->content())->toEqual('fake-content');
+});
+
+test('files can prevent stray downloads', function (): void {
+    Files::fake()->preventStrayOperations();
+
+    Files::download('file_1');
+})->throws(RuntimeException::class);
 
 test('files can prevent stray operations', function (): void {
     Files::fake()->preventStrayOperations();

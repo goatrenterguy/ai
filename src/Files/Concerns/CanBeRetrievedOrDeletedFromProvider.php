@@ -16,6 +16,14 @@ trait CanBeRetrievedOrDeletedFromProvider
     }
 
     /**
+     * Download the file's content from a given provider.
+     */
+    public function download(?string $provider = null): FileResponse
+    {
+        return Files::download($this->id, provider: $provider);
+    }
+
+    /**
      * Delete the file on a given provider.
      */
     public function delete(?string $provider = null): void

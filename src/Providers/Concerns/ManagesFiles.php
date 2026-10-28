@@ -24,6 +24,14 @@ trait ManagesFiles
     }
 
     /**
+     * Download the content of a file by its ID.
+     */
+    public function downloadFile(string $fileId): FileResponse
+    {
+        return $this->fileGateway()->downloadFile($this, $fileId);
+    }
+
+    /**
      * Store the given file.
      */
     public function putFile(StorableFile $file): StoredFileResponse

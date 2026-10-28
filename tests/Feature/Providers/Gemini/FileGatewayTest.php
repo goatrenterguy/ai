@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Files;
 use Laravel\Ai\Files\Document;
@@ -164,3 +166,30 @@ test('delete file rejects a prefixed dot segment id', function (): void {
 
     Http::assertNothingSent();
 });
+
+test('download file requests the media of a generated file', function (): void {
+    Http::fake([
+        'generativelanguage.googleapis.com/*' => Http::response('video-bytes', 200, ['Content-Type' => 'video/mp4']),
+    ]);
+
+    $response = Files::download('abc123', provider: 'gemini');
+
+    expect($response->id)->toBe('files/abc123')
+        ->and($response->content())->toBe('video-bytes')
+        ->and($response->mimeType())->toBe('video/mp4')
+        ->and($response->raw)->not->toBeNull();
+
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
+        && $request->url() === 'https://generativelanguage.googleapis.com/v1beta/files/abc123:download?alt=media'
+        && $request->hasHeader('x-goog-api-key', 'test-gemini-key'));
+});
+
+test('download file throws when the file was uploaded rather than generated', function (): void {
+    Http::fake([
+        'generativelanguage.googleapis.com/*' => Http::response([
+            'error' => ['code' => 400, 'status' => 'INVALID_ARGUMENT', 'message' => 'Only generated files can be downloaded.'],
+        ], 400),
+    ]);
+
+    Files::download('files/abc123', provider: 'gemini');
+})->throws(RequestException::class);

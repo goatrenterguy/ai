@@ -15,6 +15,11 @@ interface FileProvider extends Provider
     public function getFile(string $fileId): FileResponse;
 
     /**
+     * Download the content of a file by its ID.
+     */
+    public function downloadFile(string $fileId): FileResponse;
+
+    /**
      * Store the given file.
      */
     public function putFile(StorableFile $file): StoredFileResponse;

@@ -9,6 +9,7 @@ use Laravel\Ai\Contracts\Gateway\FileGateway;
 use Laravel\Ai\Contracts\Providers\FileProvider;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Gateway\Concerns\CreatesClient;
+use Laravel\Ai\Gateway\Concerns\CreatesDownloadedFileResponses;
 use Laravel\Ai\Gateway\Concerns\EncodesResourceIds;
 use Laravel\Ai\Gateway\Concerns\HandlesFailoverErrors;
 use Laravel\Ai\Gateway\Concerns\PreparesStorableFiles;
@@ -19,6 +20,7 @@ use Laravel\Ai\Responses\StoredFileResponse;
 class GeminiFileGateway implements FileGateway
 {
     use CreatesClient;
+    use CreatesDownloadedFileResponses;
     use EncodesResourceIds;
     use HandlesFailoverErrors;
     use PreparesStorableFiles;
@@ -39,6 +41,21 @@ class GeminiFileGateway implements FileGateway
             id: $response->json('name'),
             mimeType: $response->json('mimeType'),
         ))->withRawResponse($response);
+    }
+
+    /**
+     * Download the content of a file by its ID.
+     */
+    public function downloadFile(FileProvider $provider, string $fileId): FileResponse
+    {
+        $fileId = $this->normalizeFileId($fileId);
+
+        $response = $this->withErrorHandling(
+            $provider->name(),
+            fn () => $this->client($provider)->get($this->baseUrl($provider)."/{$fileId}:download", ['alt' => 'media'])->throw(),
+        );
+
+        return $this->downloadedFileResponse($fileId, $response);
     }
 
     /**

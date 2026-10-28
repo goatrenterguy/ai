@@ -23,6 +23,14 @@ class Files
     }
 
     /**
+     * Download the content of a file by its ID.
+     */
+    public static function download(string $fileId, ?string $provider = null): FileResponse
+    {
+        return Ai::fakeableFileProvider($provider)->downloadFile($fileId);
+    }
+
+    /**
      * Store the given file.
      */
     public static function put(

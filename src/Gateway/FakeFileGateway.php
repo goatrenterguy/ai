@@ -30,6 +30,14 @@ class FakeFileGateway implements FileGateway
     }
 
     /**
+     * Download the content of a file by its ID.
+     */
+    public function downloadFile(FileProvider $provider, string $fileId): FileResponse
+    {
+        return $this->nextGetResponse($fileId);
+    }
+
+    /**
      * Get the next response for a get request.
      */
     protected function nextGetResponse(string $fileId): FileResponse

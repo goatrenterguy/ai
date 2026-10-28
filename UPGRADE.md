@@ -22,6 +22,22 @@ try {
 
 Code that catches `FailoverableException` or `AiException` is not affected.
 
+### File Gateways Download File Content
+
+**Likelihood Of Impact: Low**
+
+This change only affects custom file providers and gateways. `FileProvider` and `FileGateway` now define a `downloadFile()` method, which `Files::download()` uses to fetch the content of a file the provider generated:
+
+```php
+// FileProvider
+public function downloadFile(string $fileId): FileResponse;
+
+// FileGateway
+public function downloadFile(FileProvider $provider, string $fileId): FileResponse;
+```
+
+Providers using the `ManagesFiles` trait already implement the `FileProvider` method. Add the `FileGateway` method to your custom file gateways.
+
 ## Upgrading To 1.2 From 1.0
 
 ### Classification Signatures Accept Attachments

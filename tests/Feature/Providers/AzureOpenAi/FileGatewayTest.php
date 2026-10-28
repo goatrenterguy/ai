@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Files;
@@ -58,3 +59,27 @@ test('delete file encodes the id as a single path segment', function (): void {
     Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
         && $request->url() === 'https://test-resource.openai.azure.com/openai/v1/files/..%2Fvector_stores%2Fvs-123');
 });
+
+test('download file uses the v1 endpoint', function (): void {
+    Http::fake([
+        'test-resource.openai.azure.com/*' => Http::response('file-bytes', 200, ['Content-Type' => 'application/octet-stream']),
+    ]);
+
+    $response = Files::download('file-abc123', provider: 'azure');
+
+    expect($response->content())->toBe('file-bytes');
+
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
+        && $request->url() === 'https://test-resource.openai.azure.com/openai/v1/files/file-abc123/content'
+        && $request->hasHeader('api-key', 'test-key'));
+});
+
+test('download file throws when the provider refuses to serve the file', function (): void {
+    Http::fake([
+        'test-resource.openai.azure.com/*' => Http::response([
+            'error' => ['code' => 'invalidPayload', 'message' => 'Not allowed to download files of purpose: assistants'],
+        ], 400),
+    ]);
+
+    Files::download('file-abc123', provider: 'azure');
+})->throws(RequestException::class);
