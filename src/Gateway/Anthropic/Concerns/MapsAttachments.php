@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Laravel\Ai\Files\Base64Document;
 use Laravel\Ai\Files\Base64Image;
+use Laravel\Ai\Files\ContainerUpload;
 use Laravel\Ai\Files\File;
 use Laravel\Ai\Files\LocalDocument;
 use Laravel\Ai\Files\LocalImage;
@@ -28,6 +29,10 @@ trait MapsAttachments
     {
         return $attachments->map(function (File|UploadedFile $attachment): array {
             $mapped = match (true) {
+                $attachment instanceof ContainerUpload => [
+                    'type' => 'container_upload',
+                    'file_id' => $attachment->id,
+                ],
                 $attachment instanceof ProviderImage => [
                     'type' => 'image',
                     'source' => [

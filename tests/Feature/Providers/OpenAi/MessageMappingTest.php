@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Files;
 use Laravel\Ai\Files\Base64Document;
+use Laravel\Ai\Files\ContainerUpload;
 use Laravel\Ai\Files\LocalImage;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\ToolResultMessage;
@@ -466,6 +467,20 @@ test('provider options cannot overwrite the mapped structural keys', function ()
             && ($imageBlock['detail'] ?? null) === 'low'
             && str_starts_with((string) $imageBlock['image_url'], 'data:image/png;base64,');
     });
+});
+
+test('container upload is rejected before sending', function (): void {
+    Http::fake([
+        'api.openai.com/*' => fakeOpenAiResponse(),
+    ]);
+
+    expect(fn () => agent('You are helpful.')->prompt(
+        'Summarize the attached spreadsheet.',
+        attachments: [new ContainerUpload('file_abc123')],
+        provider: 'openai',
+    ))->toThrow(InvalidArgumentException::class, 'Unsupported attachment type ['.ContainerUpload::class.']');
+
+    Http::assertNothingSent();
 });
 
 test('system instructions are in input array as system role', function (): void {

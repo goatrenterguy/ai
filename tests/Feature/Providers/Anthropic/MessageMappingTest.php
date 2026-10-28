@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Files;
 use Laravel\Ai\Files\Base64Document;
+use Laravel\Ai\Files\ContainerUpload;
 use Laravel\Ai\Files\LocalImage;
 use Laravel\Ai\Gateway\Anthropic\AnthropicGateway;
 use Laravel\Ai\Messages\AssistantMessage;
@@ -429,6 +430,28 @@ test('uploaded pdf file maps to document content block', function (): void {
         return $docBlock['type'] === 'document'
             && $docBlock['source']['type'] === 'base64'
             && $docBlock['source']['media_type'] === 'application/pdf';
+    });
+});
+
+test('container upload maps to a container_upload block', function (): void {
+    Http::fake([
+        'api.anthropic.com/*' => $this->fakeTextResponse(),
+    ]);
+
+    agent('You are helpful.')->prompt(
+        'Summarize the attached spreadsheet.',
+        attachments: [
+            (new ContainerUpload('file_abc123'))->as('schedule.xlsx'),
+            ContainerUpload::fromId('file_def456'),
+        ],
+        provider: 'anthropic',
+    );
+
+    Http::assertSent(function ($request): bool {
+        $content = $request->data()['messages'][0]['content'];
+
+        return $content[0] === ['type' => 'container_upload', 'file_id' => 'file_abc123']
+            && $content[1] === ['type' => 'container_upload', 'file_id' => 'file_def456'];
     });
 });
 
