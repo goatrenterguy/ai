@@ -4,7 +4,6 @@ use Laravel\Ai\Files\Base64Audio;
 use Laravel\Ai\Files\Base64Document;
 use Laravel\Ai\Files\Base64Image;
 use Laravel\Ai\Files\Base64Video;
-use Laravel\Ai\Files\ContainerUpload;
 use Laravel\Ai\Files\File;
 use Laravel\Ai\Files\LocalAudio;
 use Laravel\Ai\Files\LocalDocument;
@@ -33,7 +32,6 @@ dataset('attachment types', [
     'stored-document' => [fn (): StoredDocument => (new StoredDocument('docs/a.pdf', 'local'))->as('a.pdf'), StoredDocument::class, ['path' => 'docs/a.pdf', 'disk' => 'local']],
     'remote-document' => [fn (): RemoteDocument => (new RemoteDocument('https://x/y.pdf', 'application/pdf'))->as('y.pdf'), RemoteDocument::class, ['url' => 'https://x/y.pdf', 'mime' => 'application/pdf']],
     'provider-document' => [fn (): ProviderDocument => (new ProviderDocument('file_doc_1'))->as('doc.pdf'), ProviderDocument::class, ['id' => 'file_doc_1']],
-    'container-upload' => [fn (): ContainerUpload => (new ContainerUpload('file_upload_1'))->as('data.csv'), ContainerUpload::class, ['id' => 'file_upload_1']],
     's3-document' => [fn (): S3Document => (new S3Document('s3://my-bucket/report.pdf', '123456789012', 'application/pdf'))->as('report.pdf'), S3Document::class, ['url' => 's3://my-bucket/report.pdf', 'bucketOwner' => '123456789012', 'mime' => 'application/pdf']],
     'base64-audio' => [fn (): Base64Audio => (new Base64Audio('aGVsbG8=', 'audio/mpeg'))->as('a.mp3'), Base64Audio::class, ['base64' => 'aGVsbG8=', 'mime' => 'audio/mpeg']],
     'local-audio' => [fn (): LocalAudio => (new LocalAudio('/tmp/a.mp3', 'audio/mpeg'))->as('a.mp3'), LocalAudio::class, ['path' => '/tmp/a.mp3', 'mime' => 'audio/mpeg']],
@@ -56,7 +54,6 @@ dataset('malformed attachment types', [
     'stored-document' => [['type' => 'stored-document'], 'path'],
     'remote-document' => [['type' => 'remote-document'], 'url'],
     'provider-document' => [['type' => 'provider-document'], 'id'],
-    'container-upload' => [['type' => 'container-upload'], 'id'],
     's3-document' => [['type' => 's3-document'], 'url'],
     'base64-audio' => [['type' => 'base64-audio'], 'base64'],
     'local-audio' => [['type' => 'local-audio'], 'path'],
